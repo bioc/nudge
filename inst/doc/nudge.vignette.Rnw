@@ -1,0 +1,558 @@
+\documentclass[,12pt]{article}
+\usepackage{geometry}
+\geometry{margin=1in,top=.5in,bottom=1in}
+\usepackage{graphicx}
+\usepackage{chicago}
+\newcommand{\Robject}[1]{{\texttt{#1}}}
+\newcommand{\Rfunction}[1]{{\texttt{#1}}}
+\newcommand{\Rpackage}[1]{{\textit{#1}}}
+\newcommand{\Rclass}[1]{{\textit{#1}}}
+\newcommand{\Rmethod}[1]{{\textit{#1}}}
+\newcommand{\Rfunarg}[1]{{\textit{#1}}}
+%\VignetteIndexEntry{nudge Overview}
+%\VignetteDepends{stats}
+%\VignetteKeywords{Normal Uniform mixture, differential gene expression detection}
+%\VignettePackage{nudge}
+
+\begin{document}
+\title{The Normal Uniform Differential Gene Expression (\Rpackage{nudge}) detection package}
+\author{Nema Dean}
+\date{17th March 2006}
+\maketitle
+\tableofcontents
+
+\section{Overview}
+
+The nudge package can be used to estimate the probabilities of genes being differentially expressed in two samples with one or more replicates. The probability of differential expression comes from modeling the normalized data with a two component mixture model; a uniform component for the differentially expressed genes and a normal component for the other genes (see \citeN{dean05} for details). Posterior probabilities of being in the differentially expressed group are computed using the estimated model parameters. Typically a threshold for probability of being expressed of 0.5 is used for classification of the genes into the two groups ($\geq$ 0.5 = differentially expressed, $<$ 0.5 = not differentially expressed) but the probabilities can also be used to rank the genes in terms of how likely they are to be differentially expressed. We begin by loading the library
+
+<<>>=
+library(nudge)
+
+@
+\section{Single replicate data: the \Rfunction{nudge1} function}
+The input for the \Rfunction{nudge1} function is the single column matrices or vectors of log ratios and log intensities. The logarithm is to the base 2. An example of single replicate data is the like-like data (see Section \ref{likedata} for details) but we must first manipulate the data into the correct form. The log ratio vector, \Robject{lR}, is the log (to the base 2) of the ratio of the two sets of intensity vectors, \Robject{like[,1]} \& \Robject{like[,2]}, or by the rules of logarithms, the difference between the log of each vector. The log intensity, \Robject{lI}, is the log (to the base 2) of the product of the two sets of intensity vectors, \Robject{like[,1]} \& \Robject{like[,2]}, or by the rules of logarithms, the sum of the log of each vector.
+
+<<>>=
+data(like)
+#lR is the matrix or vector of log ratios to the base 2
+#We get this by subtracting the log of the green intensities for each gene from the log of the red intensities for each gene (the colour assignments can be the other way also)
+lR<-log(like[,1],2)-log(like[,2],2)
+#lI is the matrix or vector of log intensities to the base 2
+#We get this by adding the log of the green intensities for each gene from the log of the red intensities for each gene
+lI<-log(like[,1],2)+log(like[,2],2)
+
+@
+The \Rfunction{nudge1} function will automatically detect that there is only a single replicate and adjust the normalization performed within the function accordingly. The default parameters for the normalization are recommended for use in general but can be changed if necessary. The \Rfunarg{span1} parameter is the proportion of data to be used in the \Rfunction{loess} mean normalization (default is 0.6), the \Rfunarg{span2} parameter is the proportion of data to be used in the \Rfunction{loess} variance normalization (default is 0.2). More details about the normalizations are available in \citeN{dean05}. 
+
+The tolerance for convergence of the log-likelihood of the fitted model in the EM algorithm can also be adjusted to allow faster or slower computation times (default is 0.00001), also a limiting number of iterations that the EM fitting algorithm is allowed to run for is specified, in case the convergence is slow and the algorithm needs to be stopped before convergence is reached (default is 500). In practice, the number of iterations to convergence is rarely more than 10 and the EM algorithm estimation part of the function takes much less time to run than the \Rfunction{loess} normalizations. Generally the method takes about 30 seconds to run. To get the fitted results for the data we run the following:
+
+<<>>=
+result<-nudge1(logratio=lR,logintensity=lI)
+
+@
+The \Rfunction{nudge1} function produces a list including the vector of probabilities of differential expression for all the genes, \Robject{pdiff}, the matrix of normalized log ratios, \Robject{lRnorm}, estimates of the parameters of the model, \Robject{mu} (the EM estimate of the mean of the normal non-differentially expressed group of normalized log ratios), \Robject{sigma} (the EM estimate of the standard deviation of the normal non-differentially expressed group of normalized log ratios), \Robject{mixprob} (the prior or mixing probability for a gene not being differentially expressed), \Robject{a} and \Robject{b} (the min and max respectively of the normalized log ratios, giving the range of the uniform mixture component), the converged log likelihood value for the fitted model, \Robject{loglike}, and the number of iterations that the EM algorithm ran for, \Robject{iter}.
+
+<<>>=
+names(result)
+#pdiff is the vector of probabilities of differential expression
+#lRnorm is the vector of normalized log ratios
+#mu and sigma are the EM estimates of the parameters for the group of non-differentially expressed normalized log ratios
+#mixprob is the mixing parameter estimate (or the prior probability for a gene not being differentially expressed)
+#a is the min and b is the max of the normalized log ratios (this gives the range for the uniform mixture component)
+#loglike is the converged log likelihood value for the fitted model
+
+@
+If the genes are labeled we can look at the names or if not the number of the genes with the highest probability of differential expression. We do this by using the \Rfunction{sort} command as follows to look at the row number and probabilities of the genes with the 20 highest probabilities of differential expression.
+
+<<>>=
+s<-sort(result$pdiff,decreasing=T,index.return=T)
+#Look at the row number and the probabilities of the genes with the 20 highest probabilities of differential expression
+names(lR)<-c(1:length(lR))
+cbind(names(lR)[s$ix[1:20]],round(s$x[1:20],2))
+
+@
+We can also look at the number of genes found to be significant in the sense that their probability of differential expression is greater than a given threshold (usual threshold, \Robject{thresh} used here is 0.5). We can also look at the row numbers or names of these genes.
+
+<<>>=
+# Set the threshold value
+thresh<-0.5
+sum(result$pdiff>=thresh)
+#Can also look at the row numbers or names of these genes
+names(lR)[result$pdiff>=thresh]
+
+@
+One can also look at the plot of the original log ratios, \Robject{lR}, versus the log intensities, \Robject{lI}, compared to the plot of the normalized log ratios, \Robject{lRnorm}, produced by the normalization method versus the log intensities, \Robject{lI}, (along with the loess fitted mean lines of both). 
+
+<<>>=
+#lRnorm is the mean and variance normalized log ratios for the genes
+lRnorm<-result$lRnorm
+
+<<eval=F>>=
+#plot the two different log ratios versus log intensities side by side
+par(mfrow=c(1,2))
+#put them both on the same scale
+yl<-range(lR,lRnorm)
+plot(lI,lR,pch=".",main="Log ratios versus log intensities",xlab="log intensities",ylab="log ratios",ylim=yl)
+#We can also add a loess fitted mean line to the plot/
+l<-loess(lR~lI,span=0.6)
+slI<-sort(lI,index.return=T)
+lines(cbind(slI$x,l$fitted[slI$ix]))
+plot(lI,lRnorm,pch=".",
+main="Normalized log ratios versus log intensities", xlab="average log intensities",ylab="normalized log ratios",ylim=yl)
+#We can also add a loess fitted mean line to the plot
+l<-loess(lRnorm~lI,span=0.6)
+slI<-sort(lI,index.return=T)
+lines(cbind(slI$x,l$fitted[slI$ix]))
+
+@
+These plots are given in Figure \ref{plot1} at the end of this document.
+
+
+\section{Multiple replicate data: the \Rfunction{nudge1} function\label{mult}}
+The input for the \Rfunction{nudge1} function is the matrices of log ratios and log intensities. The logarithm is to the base 2. An example of multiple replicate data where the two samples are labeled with different dyes and then hybridized to arrays is the HIV dataset (see Section \ref{hivdata} for details). We must first manipulate the data into the correct form. \Robject{lR} is the matrix of log ratios to the base 2 which we get by subtracting the logs of the intensities for sample 1 for each gene from the logs of the corresponding intensities for sample 2 for each gene (by corresponding intensities we mean those paired to the same slide). \Robject{lI} is the matrix of log intensities to the base 2
+which we get by adding the logs of the intensities for sample 1 for each gene from the logs of the corresponding intensities for sample 2 for each gene (by corresponding intensities we mean those paired to the same slide). Note that in the HIV dataset each of the first 4 columns is paired with each of the last 4 columns in order.
+
+<<>>=
+data(hiv)
+#lR is the matrix of log ratios to the base 2
+#We get this by subtracting the logs of the intensities for sample 1 for each gene from the logs of the corresponding intensities for sample 2 for each gene (by corresponding intensities we mean those paired to the same slide)
+lR<-log(hiv[,1:4],2)-log(hiv[,5:8],2)
+#lI is the matrix of log intensities to the base 2
+#We get this by adding the logs of the intensities for sample 1 for each gene from the logs of the corresponding intensities for sample 2 for each gene (by corresponding intensities we mean those paired to the same slide)
+lI<-log(hiv[,1:4],2)+log(hiv[,5:8],2)
+
+@
+The function will automatically detect that there are multiple replicates in this dataset, giving multiple log ratios and intensities for each gene and adjust the normalization performed within the function accordingly. 
+
+The only necessary input apart from the log ratios or intensities is whether or not there is a balanced dye swap when there are multiple replicates. When we say a dye swap we mean that in one set of replicates sample 1 was labeled with red dye and sample 2 with green dye and in another set of replicates sample 2 was labeled with red dye and sample 1 with green dye. A balanced dye swap means that there are the same number of replicates in each of the two sets of dye-assignments. This is given by the \Rfunarg{dye.swap} logical argument (default is FALSE, no balanced dye-swap). 
+
+If there is no dye-swap, a \Rfunction{loess} normalization of the mean will be done using \Rfunarg{span1} proportion of the data. No mean normalization will be necessary if there is a balanced dye-swap. The argument \Rfunarg{quant} is the quantity used to choose the constant that the (mean-normalized) average log ratio for a gene is divided by when the standard deviation across replicates for the log ratios of that gene is less than its absolute (mean-normalized) average log ratio (the constant is the \Rfunarg{quant}$^{th}$ quantile of the distribution of standard deviations of the log ratios for all genes whose absolute (mean-normalized) average log ratio is greater than their standard deviation, the default is 0.99). If a gene's standard deviation for log ratios across replicates is greater than its absolute (mean-normalized) average log ratio then we simply divide the (mean-normalized) average log ratio by the gene's standard deviation. The default parameters for the normalization are recommended for use in general but can be changed if necessary.
+
+The tolerance for convergence of the log-likelihood of the fitted model in the EM algorithm can also be adjusted to allow faster or slower computation times (default is 0.00001), also a limiting number of iterations that the EM fitting algorithm is allowed to run for is specified, in case the convergence is slow and the algorithm needs to be stopped before convergence is reached (default is 500). In practice, the number of iterations to convergence is rarely more than 10 and the EM algorithm estimation part of the function takes much less time to run than the \Rfunction{loess} normalizations. Generally the method takes about 30 seconds to run. In the case of the HIV data there is a balanced dye-swap so we would run the following:
+
+<<>>=
+result<-nudge1(logratio=lR,logintensity=lI,dye.swap=T)
+
+@
+The \Rfunction{nudge1} function produces a list including the vector of probabilities of differential expression for all the genes, \Robject{pdiff}, the matrix of normalized log ratios, \Robject{lRnorm}, estimates of the parameters of the model, \Robject{mu} (the EM estimate of the mean of the normal non-differentially expressed group of normalized average log ratios), \Robject{sigma} (the EM estimate of the standard deviation of the normal non-differentially expressed group of normalized average log ratios), \Robject{mixprob} (the prior or mixing probability for a gene not being differentially expressed), \Robject{a} and \Robject{b} (the min and max respectively of the normalized average log ratios, giving the range of the uniform mixture component), the converged log likelihood value for the fitted model, \Robject{loglike}, and the number of iterations that the EM algorithm ran for, \Robject{iter}, the same as in the single replicate case.
+
+<<>>=
+names(result)
+#pdiff is the vector of probabilities of differential expression
+#lRnorm is the vector of normalized log ratios
+#mu and sigma are the EM estimates of the parameters for the group of non-differentially expressed log ratios
+#mixprob is the mixing parameter estimate (or the prior probability for a gene not being differentially expressed)
+#a is the min and b is the max of the normalized log ratios (this gives the range for the uniform mixture component)
+#loglike is the converged log likelihood value for the fitted model
+
+@ 
+If the genes are labeled again we can look at the names or if not the row numbers of the genes with the highest probability of differential expression, in the same way as in the single replicate case.
+
+<<>>=
+s<-sort(result$pdiff,decreasing=T,index.return=T)
+#Look at the row number and the probabilities of the genes with the 20 highest probabilities of differential expression
+rownames(lR)<-c(1:nrow(lR))
+cbind(rownames(lR)[s$ix[1:20]],round(s$x[1:20],2))
+
+@
+We can also look at the number (and names) of genes found to be significant in the sense that their probability of differential expression is greater than a given threshold (usual threshold used is 0.5).
+
+<<>>=
+# Set the threshold value
+thresh<-0.5
+sum(result$pdiff>=thresh)
+#Can also look at the row numbers or names of these genes
+rownames(lR)[result$pdiff>=thresh]
+
+@
+One can also look at the plot of the original average log ratios, \Robject{lRbar}, versus the average log intensities, \Robject{lIbar}, compared to the plot of the normalized average log ratios, \Robject{lRnorm}, produced by the normalization method versus the average log intensities, \Robject{lIbar}, (along with the loess fitted mean lines of both). 
+
+<<>>=
+#lRbar is the average (across replicates) log ratios for the genes
+lRbar<-apply(lR,1,mean)
+#lIbar is the average (across replicates) log intensities for the genes 
+lIbar<-apply(lI,1,mean)
+#lRnorm is the mean and variance normalized average log ratios for the genes
+lRnorm<-result$lRnorm
+
+<<eval=F>>=
+#plot the two different average log ratios versus average log intensities side by side
+par(mfrow=c(1,2))
+#put them both on the same scale
+yl<-range(lRbar,lRnorm)
+
+<<eval=F, echo=F>>=
+plot(lIbar,lRbar,pch=".",main="Average log ratios
+ versus 
+ average log  intensities",xlab="average log intensities",ylab="average log ratios", ylim=yl)
+
+@
+\begin{verbatim}
+>  plot(lIbar,lRbar,pch=".",main="Average log ratios
++	 versus 
++	average log  intensities",xlab="average log intensities",
++	 ylab="average log ratios", ylim=yl)
+\end{verbatim}
+
+<<eval=F>>=
+#We can also add a loess fitted mean line to the plot
+l<-loess(lRbar~lIbar,span=0.6)
+slI<-sort(lIbar,index.return=T)
+lines(cbind(slI$x,l$fitted[slI$ix]))
+
+<<eval=F,echo=F>>=
+plot(lIbar,lRnorm,pch=".",main="Normalized average log ratios
+ versus 
+ average log intensities",xlab="average log intensities",ylab="normalized average log ratios", ylim=yl)
+
+@
+\begin{verbatim}
+>  plot(lIbar,lRnorm,pch=".",main="Normalized average log ratios
++	 versus 
++	average log intensities",xlab="average log intensities",
++	 ylab="normalized average log ratios", ylim=yl)
+\end{verbatim}
+
+<<eval=F>>=
+#We can also add a loess fitted mean line to the plot
+l<-loess(lRnorm~lIbar,span=0.6)
+slI<-sort(lIbar,index.return=T)
+lines(cbind(slI$x,l$fitted[slI$ix]))
+
+@
+These plots are given in Figure \ref{plot2} at the end of this document.
+
+We can also check to see if, using the threshold of 0.5 we have correctly identified the positive control genes as differentially expressed and the negative control genes as not differentially expressed. We create \Robject{diff},  a vector of indicator variables with 1 indicating a gene is identified as differentially expressed, 0 otherwise (according to a threshold of 0.5 in our model) and \Robject{ndiff}, a vector of indicator variables with 1 indicating a gene is identified as not differentially expressed, 0 otherwise (according to a threshold of 0.5 in our model). We then use the similar vectors, \Robject{pos.contr} a vector of indicators for true (known) differential expression (positive control genes) and \Robject{neg.contr} a vector of indicators for true (known) non-differential expression (negative control genes). Below, we calculate the number of positive control genes we correctly identified as differentially expressed, the percentage of positive control genes identified as differentially expressed, the number of negative control genes we correctly identified as non-differentially expressed and the percentage of negative controls we correctly identified as non-differentially expressed.
+
+<<>>=
+#diff is a vector of indicator variables with 1 indicating a gene is differentially expressed, 0 not
+#ndiff is a vector of indicator variables with 1 indicating a gene is not differentially expressed, 0 is
+diff<-round(result$pdiff)
+ndiff<-1-diff
+sum((diff==pos.contr)&pos.contr)
+#we can also calculate the percentage of positive controls found
+sum((diff==pos.contr)&pos.contr)/sum(pos.contr)*100
+sum((ndiff==neg.contr)&neg.contr)
+#we can also calculate the percentage of negative controls found
+sum((ndiff==neg.contr)&neg.contr)/sum(neg.contr)*100
+
+@
+We can also calculate the fitted density of the model (\Robject{d} for range of points \Robject{x}) and compare it to the  density histogram of the normalized data to look at how good the fit is.
+
+<<eval=F>>=
+x<-seq((result$a-1),(result$b+1),0.0001)
+#d is the fitted density at each point in x
+d<-(1-result$mixprob)*dunif(x,result$a,result$b)+ result$mixprob*dnorm(x,result$mu,result$sigma)
+par(mfrow=c(1,2))
+<<eval=F,echo=F>>=
+hist(result$lRnorm,freq=F,main="Histogram of 
+average normalized log ratios", xlab="average normalized log ratios",breaks=25)
+
+@
+\begin{verbatim}
+>  hist(result$lRnorm,freq=F,main="Histogram of 
++  average normalized log ratios", xlab="average normalized log ratios",breaks=25)
+\end{verbatim}
+
+<<eval=F>>=
+lines(cbind(x,d),lty=2)
+#We can also take a closer look at the right-hand tail (where the positive controls are)
+
+<<eval=F,echo=F>>=
+hist(result$lRnorm,freq=F,main="Right-side of the histogram of 
+average normalized log ratios",xlab="average normalized log ratios",xlim=c(1.5, result$b),ylim=c(0,0.1),breaks=25)
+
+@
+\begin{verbatim}
+>  hist(result$lRnorm,freq=F,main="Right-side of the histogram of 
++	 average normalized log ratios", xlab="average normalized log ratios",
++	 xlim=c(1.5, result$b),ylim=c(0,0.1),breaks=25)
+\end{verbatim}
+
+<<eval=F>>=
+lines(cbind(x,d),lty=2)
+
+@
+These plots are given in Figure \ref{plot3} at the end of this document.
+
+\section{Multiple replicate data with samples compared to a reference sample: the \Rfunction{nudge2} function}
+In this case we are comparing both samples with a reference sample. Let's call the two types of samples control and treatment. If the control replicates are samples that are from different biological organisms from the samples used in the treatment replicates, i.e. biological replicates, there is no sensible way to decide which control samples to compare in a ratio with which treatment samples. Instead, we compare all control and treatment samples to a reference sample and instead of looking at log ratios we look instead at differences between the average across-treatment replicates' log ratios and the average across-control replicates' log ratios to check for differential expression. In the Apo AI dataset the pooled control mRNA is used as a reference sample for both treatment (knockout) and control biological replicates (see Section \ref{speeddata} for details). The input for the \Rfunction{nudge2} function is the control and treatment log ratios and log intensities. We must first manipulate the data into the correct form.
+
+<<echo=F>>=
+apo<-read.csv(file="http://www.stat.berkeley.edu/users/terry/zarray/Data/ApoA1/rg_a1ko_morph.txt", header=T)
+
+@ 
+\begin{verbatim}
+>  apo<-read.csv(file=
++	"http://www.stat.berkeley.edu/users/terry/zarray/Data/ApoA1/rg_a1ko_morph.txt",
++	 header=T)
+\end{verbatim}
+
+<<>>=
+rownames(apo)<-apo[,1]
+apo<-apo[,-1]
+colnames(apo)
+
+@
+There are zero entries in this dataset so in order to be able to take logs we add 1 to all entries. We create: \Robject{lRctl} the matrix of control log ratios to the base 2, \Robject{lRtxt} the matrix of treatment log ratios to the base 2, \Robject{lIctl} the matrix of control log intensities to the base 2 and \Robject{lItxt} the matrix of treatment log intensities to the base 2.
+
+<<>>=
+#Because of zero entries we add 1 to all entries to allow us to take  logs
+apo<-apo+1
+#lRctl is the matrix of control log ratios to the base 2
+lRctl<-log(apo[,c(seq(2,16,2))],2)-log(apo[,c(seq(1,15,2))],2)
+#lRtxt is the matrix of treatment log ratios to the base 2
+lRtxt<-log(apo[,c(seq(18,32,2))],2)-log(apo[,c(seq(17,31,2))],2)
+#lIctl is the matrix of control log intensities to the base 2
+lIctl<-log(apo[,c(seq(2,16,2))],2)+log(apo[,c(seq(1,15,2))],2)
+#lItxt is the matrix of treatment log intensities to the base 2
+lItxt<-log(apo[,c(seq(18,32,2))],2)+log(apo[,c(seq(17,31,2))],2)
+
+@
+The normalization of the mean will be done using \Rfunarg{span1} proportion of the data (default is 0.6). The \Rfunarg{quant} argument is the quantity used to choose the constant that the (mean-normalized) average log ratio differences for a gene is divided by when the standard deviation across replicates for the log ratio differences of that gene is less than its absolute (mean-normalized) average log ratio difference (the constant is the \Rfunarg{quant}$^{th}$ quantile of the distribution of standard deviations of the log ratio differences for all genes whose absolute (mean-normalized) average log ratio difference is greater than their standard deviation, the default is 0.99). If a gene's standard deviation for log ratio differences across replicates is greater than its absolute (mean-normalized) average log ratio difference then we simply divide the (mean-normalized) average log ratio difference by the gene's standard deviation. The default parameters for the normalization are recommended for use in general but can be changed if necessary.
+
+The tolerance for convergence of the log-likelihood of the fitted model in the EM algorithm can also be adjusted to allow faster or slower computation times (default is 0.00001), also a limiting number of iterations that the EM fitting algorithm is allowed to run for is specified, in case the convergence is slow and the algorithm needs to be stopped before convergence is reached (default is 500). In practice, the number of iterations to convergence is rarely more than 10 and the EM algorithm estimation part of the function takes much less time to run than the \Rfunction{loess} normalizations. Generally the method takes about 30 seconds to run. In the case of the Apo AI data we  run the following:
+
+<<>>=
+result<-nudge2(control.logratio=lRctl,txt.logratio=lRtxt, control.logintensity=lIctl,txt.logintensity=lItxt)
+
+@
+As in the previous cases, the \Rfunction{nudge2} function produces a list including the vector of probabilities of differential expression for all the genes, \Robject{pdiff}, the matrix of normalized average log ratio differences, \Robject{lRnorm}, estimates of the parameters of the model, \Robject{mu} (the EM estimate of the mean of the normal non-differentially expressed group of normalized average log ratio differences), \Robject{sigma} (the EM estimate of the standard deviation of the normal non-differentially expressed group of normalized average log ratio differences), \Robject{mixprob} (the prior or mixing probability for a gene not being differentially expressed), \Robject{a} and \Robject{b} (the min and max respectively of the normalized average log ratio differences, giving the range of the uniform mixture component), the converged log likelihood value for the fitted model, \Robject{loglike}, and the number of iterations that the EM algorithm ran for, \Robject{iter}. 
+
+<<>>=
+names(result)
+#pdiff is the vector of probabilities of differential expression
+#lRnorm is the vector of normalized log ratio differences
+#mu and sigma are the EM estimates of the parameters for the group of non-differentially expressed log ratios
+#mixprob is the mixing parameter estimate (or the prior probability for a gene not being differentially expressed)
+#a is the min and b is the max of the normalized log ratios (this gives the range for the uniform mixture component)
+#loglike is the converged log likelihood value for the fitted model
+
+@
+If the genes are labeled we can look at the names or if not the row numbers of the genes with the highest probability of differential expression.
+
+<<>>=
+s<-sort(result$pdiff,decreasing=T,index.return=T)
+#Look at the row number and the probabilities of the genes with the 20 highest probabilities of differential expression
+rownames(lRtxt)<-rownames(lRctl)<-c(1:nrow(lRtxt))
+cbind(rownames(lRtxt)[s$ix[1:20]],round(s$x[1:20],2))
+
+@
+We can also look at the number (and names) of genes found to be significant in the sense that their probability of differential expression is greater than a given threshold (usual threshold used is 0.5).
+
+<<>>=
+# Set the threshold value
+thresh<-0.5
+sum(result$pdiff>=thresh)
+#Can also look at the row numbers or names of these genes
+rownames(lRtxt)[result$pdiff>=thresh]
+
+@
+One can also look at the plot of the original average log ratio differences, \Robject{lRbar}, versus the average log intensities, \Robject{lIbar}, compared to the plot of the normalized average log ratio differences, \Robject{lRnorm}, produced by the normalization method versus the average log intensities, \Robject{lIbar}, (along with the loess fitted mean lines of both). 
+
+<<>>=
+#lRbar is the average log ratio differences for the genes
+lRbar<-apply(lRtxt,1,mean)-apply(lRctl,1,mean)
+#lIbar is the average log intensities for the genes
+lIbar<-apply(cbind(lItxt,lIctl),1,mean)
+#lRnorm is the mean and variance normalized average log ratio differences for the genes
+lRnorm<-result$lRnorm
+
+<<eval=F>>=
+#plot the two different average log ratio differences versus average log intensities side by side
+par(mfrow=c(1,2))
+# put them both on the same scale
+yl<-range(lRbar,lRnorm)
+
+<<eval=F,echo=F>>=
+plot(lIbar,lRbar,pch=".",main="Average log ratio differences
+ versus 
+ average log intensities",xlab="average log intensities",ylab="average log ratio differences", ylim=yl)
+
+@
+\begin{verbatim}
+> plot(lIbar,lRbar,pch=".",main="Average log ratio differences
++	 versus 
++	average log intensities",xlab="average log intensities",
++	 ylab="average log ratio differences", ylim=yl)
+\end{verbatim}
+
+<<eval=F>>=
+#We can also add a loess fitted mean line to the plot
+l<-loess(lRbar~lIbar,span=0.6)
+slI<-sort(lIbar,index.return=T)
+lines(cbind(slI$x,l$fitted[slI$ix]))
+
+<<eval=F,echo=F>>=
+plot(lIbar,lRnorm,pch=".",main="Normalized average log ratio differences
+ versus 
+ average log intensities",xlab="average log intensities",ylab="normalized average log ratio differences",ylim=yl)
+
+@
+\begin{verbatim}
+> plot(lIbar,lRnorm,pch=".",main="Normalized average log ratio differences
++	 versus 
++	average log intensities",xlab="average log intensities",
++	 ylab="normalized average log ratio differences",ylim=yl)
+\end{verbatim}
+
+<<eval=F>>=
+#We can also add a loess fitted mean line to the plot
+l<-loess(lRnorm~lIbar,span=0.6)
+slI<-sort(lIbar,index.return=T)
+lines(cbind(slI$x,l$fitted[slI$ix]))
+
+@
+These plots are given in Figure \ref{plot4} at the end of this document.
+
+\section{Including starting estimate information in the \Rfunction{nudge} functions}
+It has been shown that the EM algorithm (used to fit this model) can be sensitive to the starting values in terms of the estimates it converges to. The default starting  estimates used in this package are that any gene, whose absolute (mean and spread) normalized log ratio (or log ratio difference) is greater than the mean of the (mean and spread) normalized log ratios for all genes plus two standard deviations of the (mean and spread) normalized log ratios across all genes, has its starting label for the differentially expressed group set to one and the non differentially expressed group set to zero. All other genes have their starting label for the differentially expressed group set to zero and the non differentially expressed group set to one. We may have some better information about the data we are analysing than this simple default, which can be translated into better starting values for the group labels. 
+
+For example we may believe that in the like-like data we have only 10 (say) differentially expressed genes. We may not know which genes those are but we have an idea of the prior probability of being differentially expressed ($\frac{10}{7680}$). We can include this information in the starting group label estimates for the EM algorithm by randomly generating the starting estimated value of the group labels matrix in the following way:
+
+<<>>=
+data(like)
+#lR is the matrix or vector of log ratios to the base 2
+#We get this by subtracting the log of the green intensities for each gene from the log of the red intensities for each gene (the colour assignments can be the other way also)
+lR<-log(like[,1],2)-log(like[,2],2)
+#lI is the matrix or vector of log intensities to the base 2
+#We get this by adding the log of the green intensities for each gene from the log of the red intensities for each gene
+lI<-log(like[,1],2)+log(like[,2],2)
+#p is our believed value of the prior probability
+p<-10/nrow(like)
+#Generate a random set of labels for being differentially expressed using p
+temp<-rbinom(nrow(like),1,p)
+#Create a matrix of labels and use it in the nudge1 function
+z<-matrix(c(1-temp,temp),nrow(like),2,byrow=F)
+result<-nudge1(logratio=lR,logintensity=lI,z=z)
+
+@
+It is important that the labels for the differentially expressed group be in the second column of z and the labels for the not differentially expressed group be in the first, otherwise you will be giving prior information that is the opposite of what you intend. Note that because the mixing parameters are estimated from the counts of this matrix you are essentially specifying this. Because the EM can converge to local maxima, if you are using a random start like this, it is recommended that you generate several different z starting matrices and run the algorithm several times, selecting the result that gives the highest log likelihood value. Note also, that these group labels are only starting values and will be re-estimated iteratively by the EM algorithm, so the same values will not necessarily be returned.
+
+Suppose you have even more specific information. Namely that you know (or strongly believe that certain genes are differentially expressed), this can also be incorporated into the algorithm. Say in the HIV dataset that we stronly believe that the genes in rows 3, 5, 7, 771, 773, 775, 1539, 1541, 1543, 2307, 2309, 2311 and 3859 are differentially expressed (note that these are the positive controls) and that we believe that the genes in rows 2348, 3186 and 1943 are differentially expressed and that we strongly believe that genes in rows 3075, 3077, 3079, 3843 and 3845 are not differentially expressed (note that these are some of the negative control genes) and that we suspect that most of the rest are not differentially expressed. We can create a starting group label matrix to incorporate this in the following way:
+
+<<>>=
+data(hiv)
+#lR is the matrix of log ratios to the base 2
+#We get this by subtracting the logs of the intensities for sample 1 for each gene from the logs of the corresponding intensities for sample 2 for each gene (by corresponding intensities we mean those paired to the same slide)
+lR<-log(hiv[,1:4],2)-log(hiv[,5:8],2)
+#lI is the matrix of log intensities to the base 2
+#We get this by adding the logs of the intensities for sample 1 for each gene from the logs of the corresponding intensities for sample 2 for each gene (by corresponding intensities we mean those paired to the same slide)
+lI<-log(hiv[,1:4],2)+log(hiv[,5:8],2)
+#First we generate a random matrix with low probability of differential expression
+p<-0.0001
+temp<-rbinom(nrow(hiv),1,p)
+z<-matrix(c(1-temp,temp),nrow(hiv),2,byrow=F)
+# Now we incorporate the information
+z[c(3,5,7,771,773,775,1539,1541,1543,2307,2309,2311,3859),1]<-0
+z[c(3,5,7,771,773,775,1539,1541,1543,2307,2309,2311,3859),2]<-1
+z[c(2348,3186,1943),1]<-0.05
+z[c(2348,3186,1943),2]<-0.95
+z[c(3075,3077,3079,3843,3845),1]<-1
+z[c(3075,3077,3079,3843,3845),2]<-0
+result<-nudge1(logratio=lR,logintensity=lI,z=z)
+
+@
+Again, generating several such matrices and re-running the \Rfunction{nudge1} function and selecting the result that gives the highest log likelihood may be advisable. It is again important to note that the generated labels you give the algorithm will not remain fixed but will be iteratively re-estimated like the other parameters in the EM algorith, so the same values will not necessarily be returned.  
+
+The same option is available in the \Rfunction{nudge2} function.
+
+\section{Data}
+\subsection{Like-like dataset}\label{likedata}
+This dataset is from a microarray experiment where the same samples (with different dyes) were hybridized to an array with 7680 genes. 
+The expression levels in the red and green dyes were extracted from the image using customized software written at the University of Washington 
+(Spot-On Image, developed by R. E. Bumgarner and Erick Hammersmark). 
+The genes should be equally highly expressed, as each sample is the same, 
+so ideally we should find few differentially expressed genes.
+
+<<>>=
+rm(list=ls())
+data(like)
+ls()
+dim(like)
+
+@
+\subsection{HIV dataset}\label{hivdata}
+This data consists of cDNA from CD4+ T cell lines at 1 hour after infection with HIV-1BRU; see \shortciteN{vant03} for details. It is useful in testing the specificity and sensitivity of methods for identifying differentially expressed genes, since there are 13 genes known to be differentially expressed (HIV-1 genes), called positive controls, and 29 genes known not to be (non-human genes), called negative controls. There are 4608 gene expression levels recorded in each replicate. There are four replicates with balanced dye swaps (see the third paragraph in Section \ref{mult} for an explanation of balanced dye swaps) . We load the data.
+
+<<>>=
+rm(list=ls())
+data(hiv)
+ls()
+dim(hiv)
+length(pos.contr)
+length(neg.contr)
+
+@
+The first two columns of \Robject{hiv} are the expression measurements of Sample 1 under the first dye labeling scheme, the third and fourth columns are the expression measurements of Sample 1 under the second dye labeling scheme, the fifth and sixth columns are the expression measurements of Sample 2 under the first dye labeling scheme and the last two columns are the expression measurements of Sample 2 under the second labeling scheme. \Robject{pos.contr} is an indicator vector with entries set to 1 if the corresponding gene row in \Robject{hiv} belongs to a positive control and 0 otherwise.  \Robject{neg.contr} is an indicator vector with entries set to 1 if the corresponding gene row in \Robject{hiv} belongs to a negative control and 0 otherwise.
+
+\subsection{Apo AI Dataset}\label{speeddata}
+This dataset was analyzed in \shortciteN{dudoit02} and 8 genes were suggested to be
+differentially expressed.
+The data was obtained from 8 mice with the Apo AI gene knocked out and 8 normal mice. 
+However the replicates were not created simply by comparing samples from 
+control labeled with one dye versus knock-out mice labeled with the other. 
+Instead, cDNA was created from samples from each of the 16 mice 
+(both control and knock-out) and labeled in each case with the red dye. 
+The green dye was used in all cases on cDNA created by
+pooling mRNA from all 8 control mice. Here the quantity of interest is not the log ratio of samples but the difference between the group averaged samples' log ratios. This data can be accessed from Terry Speed's website in the following way:
+
+<<>>=
+rm(list=ls())
+
+@
+\begin{verbatim}
+>  apo<-read.csv(file=
++  "http://www.stat.berkeley.edu/users/terry/zarray/Data/ApoA1/rg_a1ko_morph.txt",
++  header=T)
+\end{verbatim}
+
+<<echo=F>>=
+apo<-read.csv("http://www.stat.berkeley.edu/users/terry/zarray/Data/ApoA1/rg_a1ko_morph.txt",header=T)
+
+<<>>=
+dim(apo)
+
+@
+Note that, because there are some zeros in the data, we must add a small positive constant in order to be able to take logs. We choose to add 1.
+
+<<>>=
+apo[,-1]<-apo[,-1]+1
+
+@
+\bibliographystyle{chicago}
+\bibliography{nudge.vignette}
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[height=8in,width=6in]{nvignplot1}
+\end{center}
+\caption[]{Plots of the original and normalized log ratios versus the log intensities for the like-like data}
+\label{plot1}
+\end{figure}
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[height=8in,width=6in]{nvignplot2}
+\end{center}
+\caption[]{Plots of the original and normalized average log ratios versus the average log intensities for the HIV data}
+\label{plot2}
+\end{figure}
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[height=8in,width=6in]{nvignplot3}
+\end{center}
+\caption[]{Histograms of the normalized average log ratios versus fitted model's density (given by the dashed line)}
+\label{plot3}
+\end{figure}
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[height=8in,width=6in]{nvignplot4}
+\end{center}
+\caption[]{Plots of the original and normalized average log ratio differences versus the average log intensities for the Apo AI data}
+\label{plot4}
+\end{figure}
+
+\end{document} 

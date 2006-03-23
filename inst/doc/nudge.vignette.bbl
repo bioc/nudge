@@ -1,0 +1,25 @@
+\begin{thebibliography}{}
+
+\bibitem[\protect\citeauthoryear{Dean and Raftery}{Dean and
+  Raftery}{2005}]{dean05}
+Dean, N. and A.~E. Raftery (2005).
+\newblock Normal uniform mixture differential gene expression detection in
+  c{DNA} microarrays.
+\newblock {\em BMC Bioinformatics\/}~{\em 6}, 173--186.
+
+\bibitem[\protect\citeauthoryear{Dudoit, Yang, Callow, and Speed}{Dudoit
+  et~al.}{2002}]{dudoit02}
+Dudoit, S., Y.~H. Yang, M.~Callow, and T.~Speed (2002).
+\newblock Statistical methods for identifying differentially expressed genes in
+  replicated c{D}{N}{A} microarray experiments.
+\newblock {\em Stat. Sin.\/}~{\em 12}, 111--139.
+
+\bibitem[\protect\citeauthoryear{van't Wout, Lehrma, Mikheeva, O'Keeffe, Katze,
+  Bumgarner, Geiss, and Mullins}{van't Wout et~al.}{2003}]{vant03}
+van't Wout, A.~B., G.~K. Lehrma, S.~A. Mikheeva, G.~C. O'Keeffe, M.~G. Katze,
+  R.~E. Bumgarner, G.~K. Geiss, and J.~I. Mullins (2003).
+\newblock Cellular gene expression upon human immunodeficiency virus type 1
+  infection of {CD4+}--{T}--{Cell} lines.
+\newblock {\em J. Virol.\/}~{\em 77}, 1392--1402.
+
+\end{thebibliography}
