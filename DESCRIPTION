@@ -7,4 +7,3 @@ biocViews: Microarray, TwoChannel, DifferentialExpression
 Depends: stats
 Maintainer: N. Dean <nemad@stat.washington.edu>
 License: GPL
-Packaged: Sun Mar 19 16:51:43 2006; nemadean
