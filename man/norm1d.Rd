@@ -5,7 +5,7 @@
 \description{
 This performs a robust normalization of the variance of the (mean normalized) average-across-replicates log ratios by scaling the (mean normalized) average-across-replicates log ratio for each gene either by the standard deviation of the log ratios for that gene across replicates (if bigger than its absolute (mean normalized) average-across-replicates log ratio) or scaling by a constant (a quantile of the distribution of standard deviations of log ratios across replicates for all genes whose standard deviation was bigger than their absolute (mean normalized) average-across-replicates log ratio.}
 \usage{
-norm1d(logratio, logintensity, span = 0.6, quant = 0.99, dye.swap = F)
+norm1d(logratio, logintensity, span = 0.6, quant = 0.99, dye.swap = FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{

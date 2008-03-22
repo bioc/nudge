@@ -1,8 +1,6 @@
 "norm1d" <-
-function(logratio,logintensity,span=0.6,quant=0.99,dye.swap=F)
+function(logratio,logintensity,span=0.6,quant=0.99,dye.swap=FALSE)
 {
- r<-require(stats)
- if(!r){require(modreg)}
  n<-nrow(logratio)
  d<-ncol(logratio)
  if(d<2||is.null(d)){stop("Single not multiple replicate data entered")}

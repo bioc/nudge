@@ -1,5 +1,5 @@
 "nudge1" <-
-function(logratio,logintensity,dye.swap=F,span1=0.6,span2=0.2,quant=0.99,z=NULL,tol=0.00001,iterlim=500)
+function(logratio,logintensity,dye.swap=FALSE,span1=0.6,span2=0.2,quant=0.99,z=NULL,tol=0.00001,iterlim=500)
 {
 #this function tests for differential genes when the samples (control versus treatment) are labelled with different dyes
 

@@ -1,8 +1,6 @@
 "norm1b" <-
 function(logratio,logintensity,span1=0.6,span2=0.2,mean.norm=TRUE)
 {
- r<-require(stats)
- if(!r){require(modreg)}
  if(mean.norm){
  lRnorm1<-norm1a(logratio,logintensity,span=span1)
  }else{

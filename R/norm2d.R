@@ -1,8 +1,6 @@
 "norm2d" <-
 function(control.logratio,txt.logratio,control.logintensity,txt.logintensity,span=0.6,quant=0.99)
 {
- r<-require(stats)
- if(!r){require(modreg)}
  n<-nrow(txt.logratio)
  d1<-ncol(txt.logratio)
  d2<-ncol(control.logratio)

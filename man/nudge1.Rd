@@ -5,7 +5,7 @@
 After a mean and variance normalization, a two component mixture model is fitted to the data. The normal component represents the genes that are not differentially expressed and the uniform component represents the genes that are differentially expressed. Posterior probabilities for differential expression are computed from the fitted model.
 }
 \usage{
-nudge1(logratio, logintensity, dye.swap = F, span1 = 0.6, span2 = 0.2,
+nudge1(logratio, logintensity, dye.swap = FALSE, span1 = 0.6, span2 = 0.2,
 quant = 0.99, z = NULL, tol = 0.00001,iterlim=500)
 }
 %- maybe also 'usage' for other objects documented here.
