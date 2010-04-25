@@ -1,0 +1,3 @@
+importFrom(stats, dnorm, dunif, loess, median, quantile, var)
+
+export(norm1a, norm1b, norm1c, norm1d, norm2c, norm2d, nudge1, nudge2)
