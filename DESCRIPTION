@@ -1,6 +1,6 @@
 Package: nudge
 Title: Normal Uniform Differential Gene Expression detection
-Version: 1.15.0
+Version: 1.16.0
 Author: N. Dean <nemad@stat.washington.edu> and A. E. Raftery <raftery@stat.washington.edu>
 Description: Package for normalizing microarray data in single and multiple
   replicate experiments and fitting a normal-uniform mixture to detect
